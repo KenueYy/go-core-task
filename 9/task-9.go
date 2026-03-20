@@ -2,39 +2,45 @@ package main
 
 import (
 	"fmt"
-	"math/rand"
-	"sync"
 )
 
 func main() {
-	fchan := make(chan uint)
-	schan := make(chan float64)
-	var wg sync.WaitGroup
-
-	wg.Add(2)
+	var intChan = make(chan uint)
 
 	go func() {
-		for i := 0; i < 3; i++ {
-			fchan <- uint(rand.Intn(5))
-		}
-		close(fchan)
-	}()
-
-	go func() {
-		defer wg.Done()
-		for value := range fchan {
-			a := float64(value * value * value)
-			schan <- a
-		}
-		close(schan)
-	}()
-
-	go func() {
-		defer wg.Done()
-		for value := range schan {
-			fmt.Println(value)
+		defer close(intChan)
+		for i := 0; i < 10; i++ {
+			intChan <- uint(i)
 		}
 	}()
 
-	wg.Wait()
+	cubed := Cube(intChan)
+	convertChan := FloatConverter(cubed)
+
+	for num := range convertChan {
+		fmt.Println(num)
+	}
+
+}
+
+func Cube(inCh <-chan uint) <-chan uint {
+	outCh := make(chan uint)
+	go func() {
+		defer close(outCh)
+		for value := range inCh {
+			outCh <- value * value * value
+		}
+	}()
+	return outCh
+}
+
+func FloatConverter(inCh <-chan uint) chan float64 {
+	outCh := make(chan float64)
+	go func() {
+		defer close(outCh)
+		for value := range inCh {
+			outCh <- float64(value)
+		}
+	}()
+	return outCh
 }
